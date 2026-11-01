@@ -15,6 +15,7 @@ app.use((0, cors_1.default)({
 }));
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
+app.use(express_1.default.static('public'));
 // REST Routes
 app.use('/api/auth', authRoutes_1.default);
 app.use('/api/lobbies', lobbyRoutes_1.default);

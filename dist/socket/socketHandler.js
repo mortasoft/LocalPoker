@@ -243,6 +243,20 @@ function executeAutoAction(io, table, player) {
     }
 }
 async function persistChips(table) {
+    // Loguear detalles del showdown en la consola del servidor
+    console.log(`\n================ SHOWDOWN EN MESA: ${table.id} ================`);
+    console.log(`Cartas Comunitarias: ${table.communityCards.map(c => c.toString()).join(' ')}`);
+    if (table.showdownResults) {
+        console.log(`Ganadores:`);
+        for (const w of table.showdownResults.winners) {
+            console.log(` - ${w.username} ganó ${w.amountWon} fichas con: ${w.handName} [${w.cards.join(' ')}]`);
+        }
+        console.log(`Manos mostradas:`);
+        for (const h of table.showdownResults.allPlayerHands) {
+            console.log(` - ${h.username}: [${h.cards.join(' ')}] (${h.handName})`);
+        }
+    }
+    console.log(`=============================================================\n`);
     try {
         for (const player of table.players) {
             await db_1.prisma.user.update({
