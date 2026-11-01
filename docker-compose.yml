@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  poker-api:
+    build: .
+    container_name: poker-api-server
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - JWT_SECRET=secret-secreto-super-poker-docker-token
+      - DATABASE_URL=file:/usr/src/app/data/poker.db
+      - NODE_ENV=production
+    volumes:
+      # Volumen para persistir la base de datos SQLite fuera del ciclo de vida del contenedor
+      - poker_data:/usr/src/app/data
+
+volumes:
+  poker_data:
+    driver: local

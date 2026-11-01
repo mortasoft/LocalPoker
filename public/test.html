@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LocalPoker API - Test Client</title>
+  <!-- Socket.io client script -->
+  <script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
+  <!-- Tailwind for UI styling layout -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #e2e8f0;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+    .poker-card {
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 48px;
+      height: 72px;
+      border-radius: 6px;
+      padding: 6px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      background: white;
+      color: black;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+      border: 1px solid #cbd5e1;
+    }
+    .poker-card.red {
+      color: #dc2626;
+    }
+    .poker-card.hidden {
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      color: white;
+      border: 2px solid white;
+      justify-content: center;
+      align-items: center;
+    }
+  </style>
+</head>
+<body class="p-6">
+  <div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <header class="flex justify-between items-center bg-slate-900/80 backdrop-blur border border-slate-800 p-4 rounded-2xl shadow-xl">
+      <div>
+        <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">
+          🃏 LocalPoker API Tester
+        </h1>
+        <p class="text-xs text-slate-400">Cliente de pruebas para REST y WebSockets en tiempo real</p>
+      </div>
+      <div id="connection-status" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
+        <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span> Desconectado
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Columna 1: REST Auth & Lobbies -->
+      <div class="space-y-6">
+        <!-- Autenticación -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg space-y-4">
+          <h2 class="text-lg font-bold text-slate-200 border-b border-slate-800 pb-2">🔑 1. Autenticación (REST)</h2>
+          
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Nombre de usuario</label>
+              <input type="text" id="username" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="Ej: Alice">
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Contraseña</label>
+              <input type="password" id="password" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value="password123">
+            </div>
+            
+            <div class="flex gap-2 pt-2">
+              <button onclick="restRegister()" class="flex-1 bg-slate-800 hover:bg-slate-700 transition px-3 py-2 rounded-lg text-xs font-bold text-slate-300">
+                Registrar
+              </button>
+              <button onclick="restLogin()" class="flex-1 bg-blue-600 hover:bg-blue-500 transition px-3 py-2 rounded-lg text-xs font-bold text-white shadow-lg shadow-blue-600/20">
+                Iniciar Sesión
+              </button>
+            </div>
+          </div>
+
+          <div id="auth-info" class="text-xs bg-slate-950/80 p-3 rounded-lg border border-slate-800 hidden overflow-x-auto whitespace-pre-wrap max-h-32 custom-scroll text-blue-400">
+            No autenticado
+          </div>
+        </div>
+
+        <!-- Salas -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg space-y-4">
+          <h2 class="text-lg font-bold text-slate-200 border-b border-slate-800 pb-2">🏨 2. Salas / Lobbies</h2>
+          
+          <div class="space-y-3">
+            <div class="flex gap-2">
+              <button onclick="createLobby()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 transition px-3 py-2 rounded-lg text-xs font-bold text-white shadow-lg shadow-indigo-600/20">
+                Crear Nueva Sala
+              </button>
+              <button onclick="fetchLobbies()" class="bg-slate-800 hover:bg-slate-700 transition px-3 py-2 rounded-lg text-xs font-bold text-slate-300">
+                🔄 Listar
+              </button>
+            </div>
+
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">ID de Sala (PK-XXXX)</label>
+              <div class="flex gap-2">
+                <input type="text" id="lobby-id" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Ej: PK-A8F2">
+                <button onclick="connectSocket()" class="bg-emerald-600 hover:bg-emerald-500 transition px-4 py-2 rounded-lg text-xs font-bold text-white shadow-lg shadow-emerald-600/20">
+                  Unirse por Socket
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="lobbies-list" class="space-y-2 text-xs max-h-48 overflow-y-auto custom-scroll">
+            <p class="text-slate-500 italic text-center">Haz clic en Listar para ver salas.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Columna 2: Mesa de Poker en Tiempo Real -->
+      <div class="lg:col-span-2 space-y-6">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg relative min-h-[500px] flex flex-col justify-between">
+          <div class="absolute top-4 right-4 text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20" id="game-stage-badge">
+            Esperando Jugadores
+          </div>
+          
+          <h2 class="text-lg font-bold text-slate-200 border-b border-slate-800 pb-2 flex items-center gap-2">
+            🟢 Estado de la Mesa <span id="active-room-title" class="text-slate-400 font-normal"></span>
+          </h2>
+
+          <!-- Tablero de Poker Visual -->
+          <div class="my-6 flex-1 flex flex-col justify-center items-center gap-6">
+            <!-- Cartas Comunitarias -->
+            <div class="text-center space-y-2">
+              <span class="text-xs text-slate-400 block font-semibold">CARTAS COMUNITARIAS</span>
+              <div id="community-cards-container" class="flex gap-2 justify-center min-h-[72px]">
+                <p class="text-slate-600 italic self-center text-sm">Esperando inicio de ronda...</p>
+              </div>
+            </div>
+
+            <!-- Bote total -->
+            <div class="bg-emerald-950/40 border border-emerald-500/20 px-6 py-2 rounded-xl text-center">
+              <span class="text-xs text-emerald-400 block font-semibold">BOTE TOTAL</span>
+              <span id="pot-amount" class="text-2xl font-black text-emerald-300">0 Fichas</span>
+            </div>
+            
+            <!-- Lista de Jugadores en la Mesa -->
+            <div class="w-full mt-4">
+              <span class="text-xs text-slate-400 block font-semibold mb-2">JUGADORES EN MESA</span>
+              <div id="players-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- Se poblará dinámicamente -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Controles de Acción -->
+          <div class="border-t border-slate-800 pt-4 mt-4 space-y-4">
+            <div class="flex flex-wrap gap-2 justify-between items-center">
+              <!-- Botones Básicos -->
+              <div class="flex gap-2 flex-1 min-w-[280px]">
+                <button onclick="toggleReady()" id="ready-btn" class="flex-1 bg-amber-600 hover:bg-amber-500 transition px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-lg shadow-amber-600/10">
+                  Listo (Ready)
+                </button>
+                <button onclick="sendAction('fold')" class="flex-1 bg-red-600 hover:bg-red-500 transition px-4 py-2.5 rounded-xl text-xs font-bold text-white">
+                  FOLD
+                </button>
+                <button onclick="sendAction('check')" class="flex-1 bg-slate-800 hover:bg-slate-700 transition px-4 py-2.5 rounded-xl text-xs font-bold text-slate-200">
+                  CHECK
+                </button>
+                <button onclick="sendAction('call')" class="flex-1 bg-blue-600 hover:bg-blue-500 transition px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-lg shadow-blue-600/10">
+                  CALL
+                </button>
+              </div>
+
+              <!-- Control de Raise -->
+              <div class="flex gap-2 items-center">
+                <input type="number" id="raise-amount" class="w-24 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-center font-bold text-indigo-300" placeholder="Subir a">
+                <button onclick="sendRaise()" class="bg-indigo-600 hover:bg-indigo-500 transition px-5 py-2 rounded-xl text-xs font-bold text-white shadow-lg shadow-indigo-600/20">
+                  RAISE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat y Logs de Eventos -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Chat de la Sala -->
+          <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg flex flex-col justify-between h-72">
+            <h3 class="text-sm font-bold text-slate-300 border-b border-slate-800 pb-2 mb-2">💬 Chat</h3>
+            <div id="chat-messages" class="flex-1 overflow-y-auto custom-scroll space-y-2 pr-1 text-xs mb-2">
+              <p class="text-slate-500 italic">No hay mensajes.</p>
+            </div>
+            <div class="flex gap-2">
+              <input type="text" id="chat-input" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter') sendChatMessage()">
+              <button onclick="sendChatMessage()" class="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg text-xs font-bold text-white">Enviar</button>
+            </div>
+          </div>
+
+          <!-- Consola de Eventos Recibidos -->
+          <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg flex flex-col justify-between h-72">
+            <h3 class="text-sm font-bold text-slate-300 border-b border-slate-800 pb-2 mb-2 flex justify-between items-center">
+              📁 Logs del Servidor
+              <button onclick="clearLogs()" class="text-[10px] text-slate-500 hover:text-slate-300">Limpiar</button>
+            </h3>
+            <div id="event-logs" class="flex-1 overflow-y-auto custom-scroll bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-[10px] text-slate-400 space-y-1">
+              <!-- Logs -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.location.origin;
+    let token = "";
+    let currentUser = null;
+    let socket = null;
+    let currentLobbyId = null;
+
+    // Helper functions
+    function logEvent(type, data) {
+      const logs = document.getElementById("event-logs");
+      const item = document.createElement("div");
+      item.innerHTML = `<span class="text-indigo-400">[${new Date().toLocaleTimeString()}]</span> <span class="text-emerald-400 font-bold">${type}</span>: ${JSON.stringify(data)}`;
+      logs.appendChild(item);
+      logs.scrollTop = logs.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById("event-logs").innerHTML = "";
+    }
+
+    // REST Call: Register
+    async function restRegister() {
+      const username = document.getElementById("username").value;
+      const pass = document.getElementById("password").value;
+
+      try {
+        const response = await fetch(`${API_URL}/api/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password: pass })
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+          token = data.token;
+          currentUser = data.user;
+          showAuthSuccess();
+          alert("Registro exitoso!");
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (err) {
+        alert("Error de red: " + err.message);
+      }
+    }
+
+    // REST Call: Login
+    async function restLogin() {
+      const username = document.getElementById("username").value;
+      const pass = document.getElementById("password").value;
+
+      try {
+        const response = await fetch(`${API_URL}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password: pass })
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+          token = data.token;
+          currentUser = data.user;
+          showAuthSuccess();
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (err) {
+        alert("Error de red: " + err.message);
+      }
+    }
+
+    function showAuthSuccess() {
+      const info = document.getElementById("auth-info");
+      info.classList.remove("hidden");
+      info.textContent = `Sesión iniciada:\nUsuario: ${currentUser.username}\nFichas: ${currentUser.chips}\nID: ${currentUser.id}\nJWT Token: ${token.substring(0, 15)}...`;
+    }
+
+    // REST Call: List Lobbies
+    async function fetchLobbies() {
+      if (!token) return alert("Debes iniciar sesión primero.");
+      try {
+        const response = await fetch(`${API_URL}/api/lobbies`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const lobbies = await response.json();
+        
+        const container = document.getElementById("lobbies-list");
+        container.innerHTML = "";
+        
+        if (lobbies.length === 0) {
+          container.innerHTML = `<p class="text-slate-500 italic text-center">No hay salas activas.</p>`;
+          return;
+        }
+
+        lobbies.forEach(l => {
+          const item = document.createElement("div");
+          item.className = "flex justify-between items-center bg-slate-950 p-2.5 rounded-lg border border-slate-800";
+          item.innerHTML = `
+            <div>
+              <span class="font-bold text-slate-300 text-sm">${l.id}</span>
+              <span class="text-[10px] text-slate-500 block">Ciegas: ${l.smallBlind}/${l.bigBlind}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-400">${l.playerCount}/${l.maxPlayers}</span>
+              <button onclick="selectLobby('${l.id}')" class="bg-indigo-600 hover:bg-indigo-500 px-2.5 py-1 rounded text-[10px] font-bold text-white">
+                Unirse
+              </button>
+            </div>
+          `;
+          container.appendChild(item);
+        });
+      } catch (err) {
+        alert("Error al cargar salas: " + err.message);
+      }
+    }
+
+    function selectLobby(lobbyId) {
+      document.getElementById("lobby-id").value = lobbyId;
+      connectSocket();
+    }
+
+    // REST Call: Create Lobby
+    async function createLobby() {
+      if (!token) return alert("Debes iniciar sesión primero.");
+      try {
+        const response = await fetch(`${API_URL}/api/lobbies`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ smallBlind: 10, bigBlind: 20 })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          document.getElementById("lobby-id").value = data.lobby.id;
+          fetchLobbies();
+          alert(`Sala ${data.lobby.id} creada con éxito!`);
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (err) {
+        alert("Error de red: " + err.message);
+      }
+    }
+
+    // SOCKET Connection
+    function connectSocket() {
+      if (!token) return alert("Inicia sesión antes de conectar el socket.");
+      const lobbyId = document.getElementById("lobby-id").value;
+      if (!lobbyId) return alert("Ingresa un ID de Sala (PK-XXXX).");
+
+      if (socket) {
+        socket.disconnect();
+      }
+
+      // Initialize socket.io with JWT token auth
+      socket = io(API_URL, {
+        auth: { token }
+      });
+
+      socket.on("connect", () => {
+        document.getElementById("connection-status").className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+        document.getElementById("connection-status").innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span> Conectado`;
+        
+        currentLobbyId = lobbyId;
+        document.getElementById("active-room-title").textContent = `(${lobbyId})`;
+
+        // Emit join_lobby
+        socket.emit("join_lobby", lobbyId);
+      });
+
+      socket.on("connect_error", (err) => {
+        alert("Error de conexión socket: " + err.message);
+      });
+
+      socket.on("disconnect", () => {
+        document.getElementById("connection-status").className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20";
+        document.getElementById("connection-status").innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> Desconectado`;
+        document.getElementById("active-room-title").textContent = "";
+      });
+
+      // Socket Listeners
+      socket.on("table_update", (state) => {
+        logEvent("table_update", state);
+        renderTableState(state);
+      });
+
+      socket.on("chat_message", (msg) => {
+        logEvent("chat_message", msg);
+        appendChatMessage(msg);
+      });
+
+      socket.on("error_message", (err) => {
+        logEvent("error_message", err);
+        alert("Alerta del juego: " + err);
+      });
+    }
+
+    // Rendering Table State
+    function renderTableState(state) {
+      // Stage
+      document.getElementById("game-stage-badge").textContent = translateStage(state.stage);
+      
+      // Community Cards
+      const commContainer = document.getElementById("community-cards-container");
+      commContainer.innerHTML = "";
+      if (state.communityCards.length === 0) {
+        commContainer.innerHTML = `<p class="text-slate-600 italic self-center text-sm">Esperando cartas...</p>`;
+      } else {
+        state.communityCards.forEach(c => {
+          commContainer.appendChild(createCardUI(c));
+        });
+      }
+
+      // Pot
+      document.getElementById("pot-amount").textContent = `${state.pot} Fichas`;
+
+      // Players Grid
+      const playersGrid = document.getElementById("players-grid");
+      playersGrid.innerHTML = "";
+
+      state.players.forEach((p, idx) => {
+        const isTurn = state.currentTurn === idx;
+        const isDealer = state.dealerIndex === idx;
+        const isSB = state.sbIndex === idx;
+        const isBB = state.bbIndex === idx;
+
+        const playerCard = document.createElement("div");
+        playerCard.className = `p-4 rounded-xl border ${
+          isTurn 
+            ? 'bg-slate-900 border-indigo-500 ring-2 ring-indigo-500/30' 
+            : 'bg-slate-950 border-slate-800'
+        } flex flex-col justify-between gap-3 relative`;
+
+        // Badges
+        let badgesHtml = "";
+        if (isDealer) badgesHtml += `<span class="bg-gray-700 text-white text-[9px] px-1.5 py-0.5 rounded font-black">D</span> `;
+        if (isSB) badgesHtml += `<span class="bg-blue-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black">SB</span> `;
+        if (isBB) badgesHtml += `<span class="bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black">BB</span> `;
+        if (!p.isActive) badgesHtml += `<span class="bg-rose-950 text-rose-300 text-[9px] px-1.5 py-0.5 rounded border border-rose-500/20">OFF</span> `;
+
+        // Pocket cards
+        let cardsHtml = `<div class="flex gap-1">`;
+        if (p.cards && p.cards.length > 0) {
+          p.cards.forEach(c => {
+            const cardEl = createCardUI(c);
+            cardEl.style.transform = "scale(0.85)";
+            cardEl.style.transformOrigin = "top left";
+            cardEl.style.marginRight = "-6px";
+            cardEl.style.marginBottom = "-10px";
+            cardsHtml += cardEl.outerHTML;
+          });
+        }
+        cardsHtml += `</div>`;
+
+        // Last action description
+        let actionDesc = "";
+        if (p.lastAction) {
+          actionDesc = `<span class="text-[9px] uppercase px-1.5 py-0.5 rounded font-bold ${
+            p.lastAction === 'FOLD' ? 'bg-red-950 text-red-400 border border-red-500/20' :
+            p.lastAction === 'CHECK' ? 'bg-slate-800 text-slate-300' :
+            p.lastAction === 'CALL' ? 'bg-blue-950 text-blue-300' :
+            p.lastAction === 'RAISE' || p.lastAction === 'ALL-IN' ? 'bg-purple-950 text-purple-300' : ''
+          }">${p.lastAction}</span>`;
+        }
+
+        playerCard.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-sm ${p.isFolded ? 'line-through text-slate-500' : 'text-slate-200'}">${p.username}</span>
+                ${p.isReady && state.stage === 'WAITING' ? '<span class="text-xs text-emerald-400 font-bold">✓ Listo</span>' : ''}
+              </div>
+              <span class="text-xs text-slate-400 font-semibold block">${p.chips} Fichas</span>
+              <span class="text-[10px] text-slate-500 block">Apuesta ronda: ${p.currentBet}</span>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+              <div class="flex gap-1">${badgesHtml}</div>
+              <div>${actionDesc}</div>
+            </div>
+          </div>
+          <div class="flex items-end justify-between min-h-[60px]">
+            ${cardsHtml}
+            ${p.isFolded ? '<span class="text-xs text-red-500 font-bold italic">Retirado</span>' : ''}
+          </div>
+        `;
+
+        playersGrid.appendChild(playerCard);
+      });
+
+      // Update Ready Button based on status
+      const selfPlayer = state.players.find(p => p.id === currentUser?.id);
+      if (selfPlayer) {
+        const readyBtn = document.getElementById("ready-btn");
+        if (selfPlayer.isReady) {
+          readyBtn.textContent = "Desmarcar Listo";
+          readyBtn.className = "flex-1 bg-rose-600 hover:bg-rose-500 transition px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-lg shadow-rose-600/10";
+        } else {
+          readyBtn.textContent = "Listo (Ready)";
+          readyBtn.className = "flex-1 bg-amber-600 hover:bg-amber-500 transition px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-lg shadow-amber-600/10";
+        }
+      }
+    }
+
+    function createCardUI(cardStr) {
+      const cardEl = document.createElement("div");
+      if (cardStr === "?") {
+        cardEl.className = "poker-card hidden";
+        cardEl.innerHTML = "🎴";
+        return cardEl;
+      }
+
+      // Format like "10s", "Ah", "8c", "2d"
+      const val = cardStr.substring(0, cardStr.length - 1);
+      const suitCode = cardStr.slice(-1).toUpperCase();
+      
+      const suitMap = {
+        H: { char: "♥", isRed: true },
+        D: { char: "♦", isRed: true },
+        C: { char: "♣", isRed: false },
+        S: { char: "♠", isRed: false }
+      };
+
+      const suit = suitMap[suitCode] || { char: suitCode, isRed: false };
+      cardEl.className = `poker-card ${suit.isRed ? 'red' : ''}`;
+      cardEl.innerHTML = `
+        <span class="text-left text-sm leading-none">${val}</span>
+        <span class="text-right text-lg leading-none">${suit.char}</span>
+      `;
+      return cardEl;
+    }
+
+    function translateStage(stage) {
+      const stages = {
+        WAITING: "Esperando Jugadores",
+        PRE_FLOP: "Apuestas: Pre-Flop",
+        FLOP: "Apuestas: Flop",
+        TURN: "Apuestas: Turn",
+        RIVER: "Apuestas: River",
+        SHOWDOWN: "Revelando Manos (Showdown)"
+      };
+      return stages[stage] || stage;
+    }
+
+    // Socket Actions
+    function toggleReady() {
+      if (!socket) return;
+      socket.emit("player_ready");
+    }
+
+    function sendAction(action) {
+      if (!socket) return;
+      socket.emit("game_action", { action });
+    }
+
+    function sendRaise() {
+      if (!socket) return;
+      const amount = parseInt(document.getElementById("raise-amount").value);
+      if (isNaN(amount) || amount <= 0) return alert("Ingresa un monto válido para la subida.");
+      socket.emit("game_action", { action: "raise", amount });
+      document.getElementById("raise-amount").value = "";
+    }
+
+    // Chat
+    function sendChatMessage() {
+      const input = document.getElementById("chat-input");
+      const text = input.value;
+      if (!text || !socket) return;
+      socket.emit("chat_message", text);
+      input.value = "";
+    }
+
+    function appendChatMessage(msg) {
+      const container = document.getElementById("chat-messages");
+      const item = document.createElement("div");
+      item.className = "bg-slate-950 p-2 rounded-lg border border-slate-800/60";
+      item.innerHTML = `
+        <span class="font-bold text-blue-400">${msg.sender}:</span>
+        <span class="text-slate-300 ml-1">${msg.text}</span>
+        <span class="text-[9px] text-slate-500 block text-right mt-0.5">${new Date(msg.timestamp).toLocaleTimeString()}</span>
+      `;
+      
+      const empty = container.querySelector("p");
+      if (empty) empty.remove();
+      
+      container.appendChild(item);
+      container.scrollTop = container.scrollHeight;
+    }
+  </script>
+</body>
+</html>
